@@ -240,7 +240,7 @@ void clampedExpSerial(float* values, int* exponents, float* output, int N) {
   }
 }
 
-void clampedExpVector(float* values, int* exponents, float* output, int N) {
+void clampedExpVector(float* values, int* exponents, float* output, int N) {              
 
   //
   // CS149 STUDENTS TODO: Implement your vectorized version of
@@ -249,6 +249,43 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
   // Your solution should work for any value of
   // N and VECTOR_WIDTH, not just when VECTOR_WIDTH divides N
   //
+  __cs149_vec_float x;
+  __cs149_vec_int y;
+  __cs149_vec_float result;
+  __cs149_vec_int zero = _cs149_vset_int(0);
+  __cs149_vec_int num_one = _cs149_vset_int(1);
+  __cs149_vec_float limit = _cs149_vset_float(9.999999f);
+  __cs149_mask maskClamp;
+  __cs149_mask  maskAll,maskload,maskcount;
+  maskAll = _cs149_init_ones();
+  for(int i=0;i<N;i+=VECTOR_WIDTH)
+  {
+    result=_cs149_vset_float(1.0f);
+    maskload = _cs149_init_ones();
+    if(N-i<VECTOR_WIDTH)
+    {
+       maskload = _cs149_init_ones(N-i);
+       _cs149_vload_float(x, values+i, maskload); 
+       _cs149_vload_int(y, exponents+i, maskload); 
+    }
+    else
+    {
+      _cs149_vload_float(x, values+i, maskAll); 
+      _cs149_vload_int(y, exponents+i, maskAll);
+    }
+    maskcount = _cs149_init_ones(0);
+    _cs149_vgt_int(maskcount, y, zero, maskload); 
+    
+    while(_cs149_cntbits(maskcount)>0)
+    {
+      _cs149_vmult_float(result,result,x,maskcount);
+      _cs149_vsub_int(y,y,num_one,maskcount);
+      _cs149_vgt_int(maskcount, y, zero, maskload); 
+    }
+    _cs149_vgt_float(maskClamp, result, limit, maskload);
+    _cs149_vmove_float(result, limit, maskClamp);
+    _cs149_vstore_float(output + i, result, maskload);
+  }
   
 }
 
@@ -266,15 +303,23 @@ float arraySumSerial(float* values, int N) {
 // You can assume N is a multiple of VECTOR_WIDTH
 // You can assume VECTOR_WIDTH is a power of 2
 float arraySumVector(float* values, int N) {
-  
-  //
-  // CS149 STUDENTS TODO: Implement your vectorized version of arraySumSerial here
-  //
-  
-  for (int i=0; i<N; i+=VECTOR_WIDTH) {
+  __cs149_mask all = _cs149_init_ones();
+  __cs149_vec_float sum = _cs149_vset_float(0.0f);
+  __cs149_vec_float chunk;
 
+  // Accumulate one partial sum per lane.
+  for (int i = 0; i < N; i += VECTOR_WIDTH) {
+    _cs149_vload_float(chunk, values + i, all);
+    _cs149_vadd_float(sum, sum, chunk, all);
   }
 
-  return 0.0;
+  // Add adjacent pairs and pack one copy of each sum together.
+  __cs149_vec_float pairs;
+  for (int remaining = VECTOR_WIDTH; remaining > 1; remaining /= 2) {
+    _cs149_hadd_float(pairs, sum);
+    _cs149_interleave_float(sum, pairs);
+  }
+
+  return sum.value[0];
 }
 

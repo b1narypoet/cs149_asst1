@@ -1,0 +1,7 @@
+{
+  "makefile.makePath": "/usr/bin/make",
+  "makefile.makeDirectory": "${workspaceFolder}/prog2_vecintrin",
+  "makefile.makefilePath": "${workspaceFolder}/prog2_vecintrin/Makefile",
+  "makefile.configureOnOpen": true,
+  "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools"
+}
